@@ -1,10 +1,9 @@
 import logging
 from skift_scraper import scrape_skift_news
 from scraper_phocuswire import scrape_phocuswire_news
-from db import create_articles_table, insert_article, get_latest_articles # Import get_latest_articles
-from datetime import datetime, timedelta # Import datetime and timedelta for time calculations
+from db import create_articles_table, insert_article, get_latest_articles
+from datetime import datetime
 from utils import format_relative_time
-# Configure logging for the main script
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
@@ -27,9 +26,8 @@ if __name__ == "__main__":
         else:
             logging.info(f"No articles found from {skift_url}.")
 
-        logging.info("-" * 50) # Separator for clarity
+        logging.info("-" * 50)
 
-        # Scrape Phocuswire news
         phocuswire_url = "https://www.phocuswire.com/RSS/All-News"
         phocuswire_source = "Phocuswire"
         logging.info(f"Starting to scrape Phocuswire news from {phocuswire_url}...")
@@ -47,6 +45,8 @@ if __name__ == "__main__":
         logging.info("Top 5 Latest Articles (Sorted by Timestamp)")
         logging.info("=" * 50)
         latest_articles = get_latest_articles(limit=20)
+        for article in latest_articles:
+            logging.info(f"DB time: {article['time']} - Source: {article['source']}")
         if latest_articles:
             for i, article in enumerate(latest_articles):
                

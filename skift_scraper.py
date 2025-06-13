@@ -69,9 +69,10 @@ def scrape_skift_news(url, source):
                     'article_id': article_id,
                     'title': title,
                     'link': link,
-                    'time': cleaned_time,
+                    'time': parsed_time.isoformat() if parsed_time else raw_time,
                     'source': source 
                 })
+
     except Exception as e:
         logging.error(f"Error parsing HTML for {url}: {e}")
         return []

@@ -3,14 +3,9 @@ from datetime import datetime, timedelta
 import re
 
 def generate_article_id(url):
-    """Generates a unique article ID based on the URL."""
     return hashlib.sha256(url.encode('utf-8')).hexdigest()
 
 def parse_relative_time(time_str):
-    """
-    Parses relative time strings (e.g., "1 hour ago", "14 hours ago")
-    and returns a datetime object.
-    """
     now = datetime.now()
     time_str = time_str.lower()
 
@@ -38,24 +33,21 @@ def parse_relative_time(time_str):
         match = re.search(r'(\d+)\s+month', time_str)
         if match:
             months = int(match.group(1))
-            # Approximation for months
+           
             return now - timedelta(days=months * 30)
     elif "year" in time_str:
         match = re.search(r'(\d+)\s+year', time_str)
         if match:
             years = int(match.group(1))
-            # Approximation for years
+          
             return now - timedelta(days=years * 365)
     elif "just now" in time_str or "ago" not in time_str:
-        return now # Assume "just now" or no "ago" means current time
+        return now 
     
-    return None # Could not parse
+    return None 
 
 def format_relative_time(dt_object):
-    """
-    Formats a datetime object into a human-readable relative time string.
-    e.g., "5 minutes ago", "2 hours ago", "3 days ago".
-    """
+   
     now = datetime.now()
     diff = now - dt_object
 
@@ -64,8 +56,8 @@ def format_relative_time(dt_object):
     hours = minutes // 60
     days = minutes // 24
     weeks = days // 7
-    months = days // 30 # Approximation
-    years = days // 365 # Approximation
+    months = days // 30 
+    years = days // 365
 
     if seconds < 60:
         return "just now"

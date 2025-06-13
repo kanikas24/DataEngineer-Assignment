@@ -6,7 +6,7 @@ from datetime import datetime
 from db import create_articles_table, insert_article
 import logging
 import time
-from utils import generate_article_id
+from utils import generate_article_id, format_relative_time, parse_relative_time
 try:
     import lxml
     PARSER = 'lxml'
@@ -25,8 +25,7 @@ def scrape_phocuswire_news(url, source):
     }
     for i in range(3):
         try:
-            response = requests.get(url, headers=headers, timeout=10) # Add timeout
-
+            response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
             break
         except requests.exceptions.Timeout:
@@ -35,54 +34,65 @@ def scrape_phocuswire_news(url, source):
         except requests.exceptions.RequestException as e:
             logging.error(f"Error fetching URL {url}: {e}")
             return []
-    
+
     if not response:
         logging.error(f"Failed to fetch URL {url} after multiple retries.")
         return []
-    # logging.info(f"hellodata {response.text}")
-
 
     articles_data = []
+
     try:
-        soup = BeautifulSoup(response.text, 'lxml')  # Use best available XML parser
+        soup = BeautifulSoup(response.text, PARSER)
         for item in soup.find_all('item'):
             title = item.title.text.strip() if item.title else None
             link = (item.link.text.strip() if item.link and item.link.text 
-               else item.guid.text.strip() if item.guid else None)
-            pub_date = item.pubdate.text.strip() if item.pubdate else 'No Time Found'
+                    else item.guid.text.strip() if item.guid else None)
 
+            pub_date_tag = item.find("pubDate") or item.find("pubdate")
+            pub_date = pub_date_tag.text.strip() if pub_date_tag else 'No Time Found'
+            logging.debug(f"Raw pubDate: {pub_date}")
 
             parsed_time = None
-            try:
-                # Parse RFC 822 format date (common in RSS feeds)
-                parsed_time = datetime.strptime(pub_date, "%a, %d %b %Y %H:%M:%S %z")
-            except ValueError:
-                logging.warning(f"Could not parse date string: {pub_date}")
+            if pub_date and pub_date != 'No Time Found':
+                date_formats = [
+                    "%a, %d %b %Y %H:%M:%S %z",
+                    "%a, %d %b %Y %H:%M:%S %Z",
+                    "%Y-%m-%dT%H:%M:%S%z",
+                    "%Y-%m-%d %H:%M:%S",
+                    "%d %b %Y %H:%M:%S %z"
+                ]
+                for fmt in date_formats:
+                    try:
+                        parsed_time = datetime.strptime(pub_date, fmt)
+                        break
+                    except ValueError:
+                        continue
+                if not parsed_time:
+                    logging.warning(f"Could not parse date string: {pub_date}")
+                    parsed_time = parse_relative_time(pub_date)
 
-            cleaned_time = parsed_time.strftime('%Y-%m-%d %H:%M:%S') if parsed_time else pub_date
+            cleaned_time = format_relative_time(parsed_time) if parsed_time else pub_date
 
             if not title or not link.strip() or link == 'No Link' or 'No Time Found' in cleaned_time:
                 continue
-            logging.info(f"hellodata {articles_data}")
 
             article_id = generate_article_id(link)
-            articles_data.append({
+            article_data = {
                 'article_id': article_id,
                 'title': title,
                 'link': link,
-                'time': cleaned_time,
+                'time': parsed_time.isoformat() if parsed_time else pub_date,
                 'source': source
-            })
-            logging.info(f'Article data - Title: {articles_data}')
-
+            }
+            articles_data.append(article_data)
+            logging.info(f"Added article: {title} ({cleaned_time})")
 
     except Exception as e:
         logging.error(f"Error parsing RSS feed for {url}: {e}")
         return []
-    
+
     if not articles_data:
         logging.warning("No valid articles found in RSS feed")
     else:
         logging.info(f"Found {len(articles_data)} valid articles in RSS feed")
     return articles_data
-
